@@ -1,17 +1,17 @@
+use aes::Aes256;
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut};
+use cbc::cipher::block_padding::Pkcs7;
+use cbc::cipher::{KeyIvInit, generic_array::GenericArray};
+use hmac::Hmac;
+use pbkdf2::pbkdf2;
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use serde_json;
+use sha2::{Digest, Sha256};
+use std::env;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::Path;
-use std::env;
-use sha2::{Sha256, Digest};
-use serde::{Serialize, Deserialize};
-use serde_json;
-use aes::Aes256;
-use aes::cipher::{BlockDecryptMut, BlockEncryptMut};
-use cbc::cipher::{KeyIvInit, generic_array::GenericArray};
-use cbc::cipher::block_padding::Pkcs7;
-use pbkdf2::pbkdf2;
-use hmac::Hmac;
-use rand::Rng;
 
 type Aes256CbcEnc = cbc::Encryptor<Aes256>;
 type Aes256CbcDec = cbc::Decryptor<Aes256>;
@@ -40,8 +40,16 @@ struct FileSplitter {
 }
 
 impl FileSplitter {
-    fn new(chunk_size: Option<usize>, chunk_count: Option<usize>, password: Option<String>) -> Self {
-        Self { chunk_size, chunk_count, password }
+    fn new(
+        chunk_size: Option<usize>,
+        chunk_count: Option<usize>,
+        password: Option<String>,
+    ) -> Self {
+        Self {
+            chunk_size,
+            chunk_count,
+            password,
+        }
     }
 
     fn calculate_chunk_size(&self, file_size: usize) -> usize {
@@ -67,7 +75,9 @@ impl FileSplitter {
         let mut buffer = vec![0; data.len() + 16];
         let pos = data.len();
         buffer[..pos].copy_from_slice(data);
-        let ct = cipher.encrypt_padded_mut::<Pkcs7>(&mut buffer, pos).unwrap();
+        let ct = cipher
+            .encrypt_padded_mut::<Pkcs7>(&mut buffer, pos)
+            .unwrap();
         ct.to_vec()
     }
 
@@ -77,17 +87,22 @@ impl FileSplitter {
         let cipher = Aes256CbcDec::new(&key, &iv);
 
         let mut buffer = data.to_vec();
-        cipher.decrypt_padded_mut::<Pkcs7>(&mut buffer).unwrap().to_vec()
+        cipher
+            .decrypt_padded_mut::<Pkcs7>(&mut buffer)
+            .unwrap()
+            .to_vec()
     }
 
     fn split(&self, input_path: &str) -> std::io::Result<()> {
         let path = Path::new(input_path);
-        let original_name = path.file_stem()
+        let original_name = path
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("file")
             .to_string();
 
-        let extension = path.extension()
+        let extension = path
+            .extension()
             .and_then(|s| s.to_str())
             .map(|s| s.to_string());
 
@@ -126,7 +141,10 @@ impl FileSplitter {
             let mut hasher = Sha256::new();
             hasher.update(&processed_data);
             let hash = hasher.finalize();
-            let hash_hex = hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+            let hash_hex = hash
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>();
 
             let chunk_path = format!("{}/{}.part", dir_name, hash_hex);
             let mut output_file = File::create(&chunk_path)?;
@@ -139,7 +157,10 @@ impl FileSplitter {
             });
 
             chunk_num += 1;
-            println!("Created chunk {}/{}: {}", chunk_num, total_chunks, chunk_path);
+            println!(
+                "Created chunk {}/{}: {}",
+                chunk_num, total_chunks, chunk_path
+            );
         }
 
         // Calculate password hash
@@ -178,7 +199,7 @@ impl FileSplitter {
             if self.password.is_none() {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::PermissionDenied,
-                    "Password is required for this file"
+                    "Password is required for this file",
                 ));
             }
 
@@ -189,7 +210,7 @@ impl FileSplitter {
             if provided_hash != metadata.password_hash {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::PermissionDenied,
-                    "Incorrect password"
+                    "Incorrect password",
                 ));
             }
         }
@@ -201,7 +222,8 @@ impl FileSplitter {
 
         let mut output_file = File::create(&output_name)?;
         let mut hashes_match = true;
-        let chunks_dir = Path::new(metadata_path).parent()
+        let chunks_dir = Path::new(metadata_path)
+            .parent()
             .unwrap_or_else(|| Path::new("."));
 
         for chunk_info in metadata.chunks {
@@ -214,11 +236,16 @@ impl FileSplitter {
             let mut hasher = Sha256::new();
             hasher.update(&buffer);
             let calculated_hash = hasher.finalize();
-            let calculated_hash_hex = calculated_hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+            let calculated_hash_hex = calculated_hash
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<String>();
 
             if calculated_hash_hex != chunk_info.hash {
-                eprintln!("Hash mismatch in chunk {}! Expected: {}, Got: {}",
-                          chunk_info.chunk_number, chunk_info.hash, calculated_hash_hex);
+                eprintln!(
+                    "Hash mismatch in chunk {}! Expected: {}, Got: {}",
+                    chunk_info.chunk_number, chunk_info.hash, calculated_hash_hex
+                );
                 hashes_match = false;
             }
 
@@ -233,7 +260,10 @@ impl FileSplitter {
         }
 
         if hashes_match {
-            println!("Successfully joined {} chunks to {}", metadata.total_chunks, output_name);
+            println!(
+                "Successfully joined {} chunks to {}",
+                metadata.total_chunks, output_name
+            );
         } else {
             eprintln!("File joined but some chunks failed hash verification!");
         }
@@ -246,8 +276,14 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
         println!("Usage:");
-        println!("  To split: {} split <input_file> [--chunk-size SIZE | --chunk-count COUNT] [--password PASS]", args[0]);
-        println!("  To join: {} join <metadata_file> [--password PASS]", args[0]);
+        println!(
+            "  To split: {} split <input_file> [--chunk-size SIZE | --chunk-count COUNT] [--password PASS]",
+            args[0]
+        );
+        println!(
+            "  To join: {} join <metadata_file> [--password PASS]",
+            args[0]
+        );
         println!("\nOptions:");
         println!("  --chunk-size SIZE   Set chunk size in bytes");
         println!("  --chunk-count COUNT Set number of chunks");
@@ -268,31 +304,31 @@ fn main() {
         match args[i].as_str() {
             "--chunk-size" => {
                 if i + 1 < args.len() {
-                    chunk_size = Some(args[i+1].parse().unwrap());
+                    chunk_size = Some(args[i + 1].parse().unwrap());
                     i += 2;
                 } else {
                     eprintln!("Error: --chunk-size requires a value");
                     return;
                 }
-            },
+            }
             "--chunk-count" => {
                 if i + 1 < args.len() {
-                    chunk_count = Some(args[i+1].parse().unwrap());
+                    chunk_count = Some(args[i + 1].parse().unwrap());
                     i += 2;
                 } else {
                     eprintln!("Error: --chunk-count requires a value");
                     return;
                 }
-            },
+            }
             "--password" => {
                 if i + 1 < args.len() {
-                    password = Some(args[i+1].clone());
+                    password = Some(args[i + 1].clone());
                     i += 2;
                 } else {
                     eprintln!("Error: --password requires a value");
                     return;
                 }
-            },
+            }
             _ => {
                 pos_args.push(args[i].clone());
                 i += 1;
@@ -317,7 +353,7 @@ fn main() {
             if let Err(e) = splitter.split(&pos_args[0]) {
                 eprintln!("Error splitting file: {}", e);
             }
-        },
+        }
         "join" => {
             if pos_args.is_empty() {
                 eprintln!("Error: Need metadata file");
@@ -326,7 +362,7 @@ fn main() {
             if let Err(e) = splitter.join(&pos_args[0]) {
                 eprintln!("Error joining files: {}", e);
             }
-        },
+        }
         _ => {
             eprintln!("Unknown command: {}", command);
         }
