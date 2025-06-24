@@ -8,8 +8,6 @@
 [![GitHub Issues](https://img.shields.io/github/issues/Nekiplay/MixSplitter)](https://github.com/Nekiplay/MixSplitter/issues)
 [![GitHub Stars](https://img.shields.io/github/stars/Nekiplay/MixSplitter?style=social)](https://github.com/Nekiplay/MixSplitter/stargazers)
 
-<img src="assets/icon.png" alt="Cross Cleaner Logo" width="64"/>
-
 ### A powerful file spliter and joiner made in Rust
 
 </div>
