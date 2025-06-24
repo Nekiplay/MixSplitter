@@ -1,5 +1,5 @@
 <div align="center">
-<h1>🌟 Mix Cleaner 🌟</h1>
+<h1>🌟 Mix Spliter 🌟</h1>
   
 [![Rustlang](https://img.shields.io/static/v1?label=Made%20with&message=Rust&logo=rust&labelColor=e82833&color=b11522)](https://www.rust-lang.org)
 [![Github License](https://img.shields.io/github/license/Nekiplay/MixSplitter?logo=mdBook)](https://github.com/Nekiplay/MixSplitter/blob/main/LICENSE)
