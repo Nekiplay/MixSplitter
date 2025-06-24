@@ -1,0 +1,103 @@
+name: Release
+
+on: 
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 2.0.1)'
+        required: true
+        default: '2.0.1'
+
+env:
+  CARGO_TERM_COLOR: always
+  APP_VERSION: ${{ github.event.inputs.version }}
+
+jobs:
+  formating_code:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    name: Formating code
+    steps:
+    - uses: actions/checkout@v4
+    - name: Formating code
+      run: cargo fmt
+    - name: Commit changes
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add .
+        git commit -m "Auto format code" || echo "No changes to commit"
+        git push || echo "No changes to push"
+
+  build_linux:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    name: Build Linux
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build linux
+      run: cargo build --release
+    - name: Move linux binaries
+      run: |
+        mv target/release/FileSpliter FileSpliter
+    - name: Upload Linux artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-binaries
+        path: |
+          FileSpliter
+
+  build_windows:
+    runs-on: windows-latest
+    permissions: write-all
+    name: Build Windows
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build windows
+      run: cargo build --release
+    - name: Move windows binaries
+      run: |
+        move target\release\FileSpliter.exe FileSpliter.exe
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-binaries
+        path: |
+          FileSpliter.exe
+
+  create_release:
+    needs: [build_linux, build_windows]
+    runs-on: ubuntu-latest
+    name: Create Release
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Download Linux artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: linux-binaries
+        path: linux-binaries
+    - name: Download Windows artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: windows-binaries
+        path: windows-binaries
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ env.APP_VERSION }}
+        name: 🌟 Mix Splitter ${{ env.APP_VERSION }} 🌟
+        body: |
+          ![Downloads](https://img.shields.io/github/downloads/Nekiplay/MixSplitter/v${{ env.APP_VERSION }}/total) ![Version](https://img.shields.io/badge/version-${{ env.APP_VERSION }}-blue) ![Platform](https://img.shields.io/badge/platform-Windows%20|%20Linux-orange)
+
+          ## 👏 Contributors Hall of Fame
+          Special thanks to our amazing contributors who made this release possible:
+          - **@Nekiplay** - Core improvements and feature implementations
+
+          ---
+          *Thank you for using Mix Splitter!*
+        files: |
+          linux-binaries/FileSpliter
+          windows-binaries/FileSpliter.exe
